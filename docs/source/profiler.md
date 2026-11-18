@@ -20,6 +20,16 @@
 ```
 
 ## API Reference
+
+For the experimental NVIDIA AON client, its current limitations, and diagnostic
+capture examples, see:
+
+```{toctree}
+:maxdepth: 1
+
+profiler_aon
+```
+
 ```{eval-rst}
 
 .. autoclass:: torch.profiler.profile

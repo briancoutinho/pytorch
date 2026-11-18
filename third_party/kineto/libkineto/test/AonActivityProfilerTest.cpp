@@ -17,6 +17,7 @@
 
 #include "include/Config.h"
 #include "src/AonActivityProfiler.h"
+#include "src/aon/AonClientAdapter.h"
 
 using namespace KINETO_NAMESPACE;
 
@@ -173,4 +174,32 @@ TEST(AonActivitySessionTest, CleansTemporaryDatabase) {
   }
 
   EXPECT_FALSE(std::filesystem::exists(databasePath));
+}
+
+TEST(AonActivitySessionTest, StopsActiveConsumerBeforeDestruction) {
+  FakeConsumerState state;
+  {
+    AonActivitySession session(
+        std::make_unique<FakeAonTraceConsumer>(state),
+        std::filesystem::path{"unused"},
+        false);
+    ASSERT_TRUE(session.prepare());
+    session.start();
+  }
+  EXPECT_EQ(state.stopCalls, 1);
+}
+
+TEST(AonClientAdapterTest, RejectsInvalidArgumentsWithoutConnecting) {
+  EXPECT_FALSE(kineto_aon_consumer_initialize(nullptr, "unused"));
+  EXPECT_FALSE(kineto_aon_consumer_start(nullptr));
+  EXPECT_FALSE(kineto_aon_consumer_stop(nullptr));
+  kineto_aon_consumer_destroy(nullptr);
+
+  auto* consumer = kineto_aon_consumer_create();
+  ASSERT_NE(consumer, nullptr);
+  EXPECT_FALSE(kineto_aon_consumer_initialize(consumer, nullptr));
+  EXPECT_FALSE(kineto_aon_consumer_initialize(consumer, ""));
+  EXPECT_FALSE(kineto_aon_consumer_start(consumer));
+  EXPECT_FALSE(kineto_aon_consumer_stop(consumer));
+  kineto_aon_consumer_destroy(consumer);
 }

@@ -1,0 +1,4 @@
+{
+  global: kineto_aon_*;
+  local: *;
+};

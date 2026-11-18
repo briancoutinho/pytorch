@@ -103,6 +103,12 @@ void libkineto_init(bool cpuOnly, [[maybe_unused]] bool logOnError) {
 
 #ifdef HAS_AON
   if (aonMode) {
+    if (!isAonServiceAvailable()) {
+      LOG(WARNING)
+          << "AON cannot connect to the external nvidia-nsight-perf service. "
+          << "The administrator or user must start it and allow client access. "
+          << "GPU events will be unavailable; Kineto does not manage the service.";
+    }
     api.registerProfilerFactory([]() -> std::unique_ptr<IActivityProfiler> {
       return std::make_unique<AonActivityProfiler>();
     });

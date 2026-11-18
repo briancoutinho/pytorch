@@ -244,6 +244,7 @@ exclude = [
     # Docs and editor / dev metadata that scikit-build-core's package walk
     # picks up but legacy setup.py omitted.
     "**/*.md",
+    "!torch/share/licenses/kineto/**",
     "**/.gitignore",
     "**/*.vim",
     # Lint-tool input only (consumed by tools/linter/adapters/header_only_linter.py),

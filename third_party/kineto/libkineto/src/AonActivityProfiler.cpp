@@ -21,11 +21,8 @@
 
 #include <unistd.h>
 
-#include <NvTrace/Target/Consumer/NvTraceStreamDatabaseWriter.h>
-#include <NvTrace/Target/Consumer/NvTraceStreamingConsumer.h>
-#include <NvTrace/Target/NvTraceCpuTimestamp.h>
-
 #include "Logger.h"
+#include "aon/AonClientAdapter.h"
 #include "libkineto.h"
 
 namespace KINETO_NAMESPACE {
@@ -36,29 +33,26 @@ const std::set<libkineto::ActivityType> kSupportedActivities{};
 
 class NvTraceStreamingConsumer final : public IAonTraceConsumer {
  public:
+  NvTraceStreamingConsumer() : consumer_(kineto_aon_consumer_create()) {}
+
+  ~NvTraceStreamingConsumer() override {
+    kineto_aon_consumer_destroy(consumer_);
+  }
+
   bool initialize(const std::filesystem::path& databasePath) override {
-    Consumer::Options options;
-    options.dataBlockSize = 10 * 1024 * 1024;
-    return consumer_.Initialize(
-        options,
-        [&databasePath](nv::trace::TsfDiskDatabaseBufferedStorageWriter&
-                            storageWriter) {
-          return storageWriter.Initialize(databasePath);
-        });
+    return kineto_aon_consumer_initialize(consumer_, databasePath.c_str());
   }
 
   bool start() override {
-    return consumer_.Start();
+    return kineto_aon_consumer_start(consumer_);
   }
 
   bool stop() override {
-    return consumer_.StopAtTsc(nv::trace::ReadCpuTscTimestamp());
+    return kineto_aon_consumer_stop(consumer_);
   }
 
  private:
-  using Consumer = nv::trace::StreamingConsumer<
-      nv::trace::TsfDiskDatabaseBufferedStorageWriter>;
-  Consumer consumer_;
+  KinetoAonConsumer* consumer_;
 };
 
 std::filesystem::path makeDatabasePath() {
@@ -84,6 +78,10 @@ AonActivitySession::AonActivitySession(
       cleanupDatabase_(cleanupDatabase) {}
 
 AonActivitySession::~AonActivitySession() {
+  if (started_) {
+    stop();
+  }
+  consumer_.reset();
   if (!cleanupDatabase_ || databasePath_.empty()) {
     return;
   }
@@ -102,7 +100,9 @@ bool AonActivitySession::prepare() {
   try {
     if (!consumer_ || !consumer_->initialize(databasePath_)) {
       recordError(
-          "AON could not connect to the external nvidia-nsight-perf service");
+          "AON could not connect to the external nvidia-nsight-perf service "
+          "or initialize trace storage. Ask the administrator or user to "
+          "start the service and check access permissions and storage.");
       return false;
     }
   } catch (const std::exception& error) {
@@ -221,6 +221,10 @@ bool isAonGpuProfilerSelected() {
   LOG(WARNING) << "Ignoring invalid KINETO_GPU_PROFILER='" << mode
                << "'; expected 'cupti' or 'aon'";
   return false;
+}
+
+bool isAonServiceAvailable() {
+  return kineto_aon_service_available();
 }
 
 } // namespace KINETO_NAMESPACE

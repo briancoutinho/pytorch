@@ -81,4 +81,7 @@ class AonActivityProfiler final : public libkineto::IActivityProfiler {
 // KINETO_GPU_PROFILER=aon.
 [[nodiscard]] bool isAonGpuProfilerSelected();
 
+// A successful connection does not guarantee that every GPU provider is ready.
+[[nodiscard]] bool isAonServiceAvailable();
+
 } // namespace KINETO_NAMESPACE
