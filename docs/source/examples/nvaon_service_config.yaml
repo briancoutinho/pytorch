@@ -1,0 +1,117 @@
+# Example configuration for an externally managed NVIDIA Nsight Perf service.
+# Keep ReducedOverview.config from the SDK beside the service executable.
+# PM samples are retained in raw TSF; Kineto currently exports CUDA activities.
+# Runtime API tracing is optional; driver APIs and GPU timing remain enabled.
+
+Router:
+  maxProviderClients: 32
+  maxObserverClients: 32
+  maxObserverClientPendingExclusiveNotifications: 32
+  maxGpuPartitions: 32
+  maxProcesses: 32
+  maxProviderTypes: 32
+  maxProviders: 64
+  securityPolicy:
+    authorizedProviderClients:
+    - principal: /everyone
+    authorizedObserverClients:
+    - principal: /everyone
+      processes: all
+      gpus: all
+    authorizedControllerClients:
+    - principal: /everyone
+      gpus: all
+GpuPmCounters:
+  metricConfig:
+    metricsToEvaluateOnline: []
+    file: '{ServiceBinaryDirectory}/ReducedOverview.config'
+  pmSampleRateHz: 1000
+  updateIntervalNsec: 100000000
+  readbackHoldoffNsec: 10000000
+  keepLatest: true
+  maxHistoryDurationMsec: 0
+  architectures:
+  - chipRegex: GB10x
+    metricsToConfigure:
+    - gpc__cycles_elapsed.avg.per_second
+    - sys__cycles_elapsed.avg.per_second
+    - gr__cycles_active.avg.pct_of_peak_sustained_elapsed
+    - sm__cycles_active.avg.pct_of_peak_sustained_elapsed
+    - sm__inst_executed_realtime.avg.pct_of_peak_sustained_elapsed
+    - sm__pipe_tensor_cycles_active_realtime.avg.pct_of_peak_sustained_elapsed
+    - dram__bytes_read.avg.pct_of_peak_sustained_elapsed
+    - dram__bytes_write.avg.pct_of_peak_sustained_elapsed
+    - TPC.TriageCompute.tpc__warps_active_shader_cs_realtime.avg.pct_of_peak_sustained_elapsed
+    - PCI.TriageCompute.pcie__read_bytes.avg.pct_of_peak_sustained_elapsed
+    - PCI.TriageCompute.pcie__write_bytes.avg.pct_of_peak_sustained_elapsed
+    metricsToEvaluate: null
+  - chipRegex: GB20x
+    metricsToConfigure:
+    - gpc__cycles_elapsed.avg.per_second
+    - sys__cycles_elapsed.avg.per_second
+    - gr__cycles_active.avg.pct_of_peak_sustained_elapsed
+    - sm__cycles_active.avg.pct_of_peak_sustained_elapsed
+    - sm__inst_executed_realtime.avg.pct_of_peak_sustained_elapsed
+    - sm__pipe_tensor_cycles_active_realtime.avg.pct_of_peak_sustained_elapsed
+    - tpc__warps_active_shader_cs_realtime.avg.pct_of_peak_sustained_elapsed
+    - dram__bytes_op_read.avg.pct_of_peak_sustained_elapsed
+    - dram__bytes_op_write.avg.pct_of_peak_sustained_elapsed
+    - pcie__read_bytes.avg.pct_of_peak_sustained_elapsed
+    - pcie__write_bytes.avg.pct_of_peak_sustained_elapsed
+    metricsToEvaluate: null
+  - chipRegex: GB20B
+    metricsToConfigure:
+    - sm__inst_executed.sum
+    - sm__inst_executed.avg.pct_of_peak_sustained_elapsed
+    - sm__pipe_tensor_cycles_active_realtime.avg.pct_of_peak_sustained_elapsed
+    metricsToEvaluate: null
+  - chipRegex: .*
+    metricsToConfigure:
+    - sm__inst_executed.sum
+    - sm__inst_executed.avg.pct_of_peak_sustained_elapsed
+    - sm__pipe_tensor_cycles_active_realtime.avg.pct_of_peak_sustained_elapsed
+    - dram__bytes.avg.pct_of_peak_sustained_elapsed
+    - dram__bytes.sum
+    - dram__bytes.sum.per_second
+    metricsToEvaluate: null
+GpuClockCalibration:
+  circularBufferCellCount: 128
+  updateIntervalNsec: 1000000000
+GpuHwTrace:
+  circularBufferCellCount: 524288
+  updateIntervalNsec: 100000000
+  readbackHoldoffNsec: 10000000
+  showInternalEvents: false
+  keepLatest: true
+GpuGrCtxTrace:
+  circularBufferCellCount: 6144
+  updateIntervalNsec: 100000000
+CudaApiTrace:
+  maxContextCount: 128
+  maxStreamCount: 1024
+  maxModuleCount: 2048
+  maxFunctionCount: 16384
+  maxGraphExecCount: 8192
+  maxGraphNodeCount: 524288
+  maxStringTableEntries: 131072
+  sizeofStringTableData: 4194304
+  maxStringTableEntryLength: 16384
+  traceRuntimeApiCalls: false
+  driverApiTraceFirewall:
+  - firewallOp: exclude
+    cudaApiCategories:
+    - Getters
+    - Setters
+  - firewallOp: reject
+    cudaApiNameContains:
+    - cuStreamQuery
+    - cuEventQuery
+NvtxTrace:
+  maxDomainCount: 64
+  maxStringTableSize: 2097152
+ThreadEvent:
+  maxThreadCount: 64
+  circularFifoEntriesPerThread: 512
+  chunkCount: 262144
+  sizeofChunk: 2048
+  maxUnknownProviderTypes: 256

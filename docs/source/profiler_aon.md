@@ -63,6 +63,27 @@ python -m pip install -e . -v --no-build-isolation \
   -Ccmake.define.KINETO_AON_FLATBUFFERS_SOURCE_DIR=/path/to/flatbuffers-23.5.26
 ```
 
+## Configure the external service
+
+Download {download}`nvaon_service_config.yaml <examples/nvaon_service_config.yaml>`
+and point the external service at that file:
+
+```bash
+export NVIDIA_NSIGHT_PERF_CONFIG_PATH="$PWD/nvaon_service_config.yaml"
+```
+
+This example enables CUDA driver tracing, GPU timing and clock calibration,
+and PM collection using the SDK's `ReducedOverview.config`. Keep that metric
+file beside the installed `nvidia-nsight-perf` executable. The same service
+configuration works with `aon_torch_profiler.py` and the raw TSF example.
+PyTorch does not load this YAML or start the service itself.
+
+`CudaApiTrace.traceRuntimeApiCalls` is `false` in the example, so expect CUDA
+driver calls and kernels. Set it to `true` if CUDA runtime API events are also
+needed; runtime tracing can increase service startup time and memory usage.
+PM samples are retained in raw TSF; numeric PM counter events are not yet
+exported into the Kineto trace.
+
 ## Export a Kineto trace
 
 After starting the external service and checking readiness, select the backend
@@ -138,13 +159,14 @@ database bytes are separate checks; none alone guarantees a complete trace.
 ## Slurm example
 
 Download {download}`aon_slurm.sh <examples/aon_slurm.sh>` beside
-`aon_torch_profiler.py`. Select the account and partition appropriate to your
-cluster:
+`aon_torch_profiler.py` and `nvaon_service_config.yaml`. Select the account and
+partition appropriate to your cluster:
 
 ```bash
 export NSIGHT_PERF_BIN_PATH=/shared/path/to/nsight-perf/bin
 export AON_PYTHON=/shared/path/to/pytorch-venv/bin/python
 export AON_EXAMPLE_SCRIPT="$PWD/aon_torch_profiler.py"
+export NVIDIA_NSIGHT_PERF_CONFIG_PATH="$PWD/nvaon_service_config.yaml"
 srun --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
   --nodes=1 --ntasks=1 --gpus-per-task=1 --cpus-per-task=4 \
   --mem=32G --time=00:10:00 bash aon_slurm.sh
