@@ -171,6 +171,14 @@ target_include_directories(AonActivityProfilerTest PRIVATE
     "${LIBKINETO_DIR}/include"
     "${LIBKINETO_DIR}/src")
 gtest_discover_tests(AonActivityProfilerTest)
+# The SDK decoder test is isolated from kineto_base and PyTorch's FlatBuffers.
+add_executable(AonTraceDecoderTest AonTraceDecoderTest.cpp)
+target_include_directories(AonTraceDecoderTest PRIVATE
+    "${LIBKINETO_DIR}"
+    "${KINETO_AON_CLIENT_SOURCE_DIR}/include"
+    "${KINETO_AON_FLATBUFFERS_SOURCE_DIR}/include")
+target_link_libraries(AonTraceDecoderTest PRIVATE gtest_main ${CMAKE_DL_LIBS})
+gtest_discover_tests(AonTraceDecoderTest)
 endif()
 
 # CuptiCallbackApiTest

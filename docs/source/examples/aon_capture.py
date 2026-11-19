@@ -38,7 +38,9 @@ def capture(adapter, database: Path, seconds: float) -> dict:
     iterations = 0
     try:
         if not adapter.kineto_aon_consumer_initialize(consumer, bytes(database)):
-            raise RuntimeError("Cannot initialize the service connection or trace storage")
+            raise RuntimeError(
+                "Cannot initialize the service connection or trace storage"
+            )
         if not adapter.kineto_aon_consumer_start(consumer):
             raise RuntimeError("Cannot start the AON streaming consumer")
         try:
@@ -75,7 +77,9 @@ def main() -> None:
         parser.error("--captures and --seconds must be positive and finite")
     adapter = load_adapter()
     if not adapter.kineto_aon_service_available():
-        raise RuntimeError("Start the external service and check XDG_RUNTIME_DIR and permissions")
+        raise RuntimeError(
+            "Start the external service and check XDG_RUNTIME_DIR and permissions"
+        )
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is unavailable in this PyTorch environment")
     output = args.output.resolve()

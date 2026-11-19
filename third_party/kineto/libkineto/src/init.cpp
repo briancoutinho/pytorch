@@ -98,8 +98,8 @@ void libkineto_init(bool cpuOnly, [[maybe_unused]] bool logOnError) {
 #else
   constexpr bool aonMode = false;
 #endif
-  api.registerProfiler(
-      std::make_unique<ActivityProfilerProxy>(cpuOnly || aonMode, config_loader));
+  api.registerProfiler(std::make_unique<ActivityProfilerProxy>(
+      cpuOnly || aonMode, config_loader));
 
 #ifdef HAS_AON
   if (aonMode) {

@@ -13,7 +13,7 @@ foreach(header
 endforeach()
 
 find_package(Threads REQUIRED)
-add_library(kineto_aon SHARED AonClientAdapter.cpp)
+add_library(kineto_aon SHARED AonClientAdapter.cpp AonTraceReader.cpp)
 set_target_properties(kineto_aon PROPERTIES
   CXX_STANDARD 17
   CXX_STANDARD_REQUIRED YES

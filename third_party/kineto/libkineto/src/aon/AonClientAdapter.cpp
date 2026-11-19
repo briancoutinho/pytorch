@@ -50,7 +50,8 @@ int kineto_aon_consumer_initialize(
     KinetoAonConsumer::Consumer::Options options;
     return consumer->consumer.Initialize(
         options,
-        [database_path](nv::trace::TsfDiskDatabaseBufferedStorageWriter& writer) {
+        [database_path](
+            nv::trace::TsfDiskDatabaseBufferedStorageWriter& writer) {
           return writer.Initialize(std::filesystem::path{database_path});
         });
   } catch (...) {

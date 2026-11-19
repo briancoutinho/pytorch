@@ -405,6 +405,8 @@ license-files = [
     "third_party/mslk/external/cutlass/LICENSE.txt",
     "third_party/mslk/mslk/attention/flash_attn/LICENSE",
     "third_party/nlohmann/LICENSE.MIT",
+    "third_party/nvtrace-client/LICENSE",
+    "third_party/nvtrace-flatbuffers/LICENSE",
     "third_party/onnx/LICENSE",
     "third_party/perfetto/LICENSE",
     "third_party/protobuf/LICENSE",

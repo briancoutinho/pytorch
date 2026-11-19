@@ -34,6 +34,8 @@ excluded = [
   'third_party/flash-attention/csrc/cutlass/python/LICENSE.txt',
   'third_party/flatbuffers/dart/LICENSE',
   'third_party/flatbuffers/swift/LICENSE',
+  'third_party/nvtrace-flatbuffers/dart/LICENSE',
+  'third_party/nvtrace-flatbuffers/swift/LICENSE',
   'third_party/googletest/LICENSE',
   'third_party/ideep/mkl-dnn/third_party/gtest/LICENSE',
   'third_party/mslk/external/cutlass/python/LICENSE.txt',
@@ -62,6 +64,8 @@ excluded = [
 expression = 'Apache-2.0'
 paths = [
   'third_party/flatbuffers/LICENSE',
+  'third_party/nvtrace-client/LICENSE',
+  'third_party/nvtrace-flatbuffers/LICENSE',
   'third_party/gemmlowp/gemmlowp/LICENSE',
   'third_party/cudnn_frontend/LICENSE.txt',
   'third_party/cudnn_frontend/python/cudnn/moe_ep/_megamoe_backend/cutedsl_src/LICENSE.Apache-2.0',

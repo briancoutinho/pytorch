@@ -5,15 +5,17 @@ external service. This experimental Kineto integration compiles its public
 NvTrace client into a private shared adapter, `libkineto_aon.so`.
 
 ```{warning}
-This integration is a development scaffold. The AON-to-Kineto activity
-converter is not implemented. Setting `KINETO_GPU_PROFILER=aon` disables
-CUPTI GPU collection, but does **not** add AON GPU events to
-`torch.profiler` traces. Keep the default CUPTI backend for normal
-`torch.profiler` GPU traces.
+This backend is experimental. Setting `KINETO_GPU_PROFILER=aon` selects
+AON instead of CUPTI for GPU collection. It requires a separately running,
+compatible service that captures CUDA API and GPU timing records. PM samples
+alone cannot produce CUDA activity events. Validate service readiness and the
+event categories in each capture; a successful connection alone does not
+establish that every provider works.
 ```
 
-The examples below test the private adapter directly and write an SDK Trace
-Stream Database (TSF). This diagnostic interface is not a supported public
+The profiler example below exports Kineto activities. The raw-capture examples
+also test the private adapter directly and write an SDK Trace Stream Database
+(TSF). This diagnostic interface is not a supported public
 PyTorch Python API and may change. A nonempty TSF file alone does not prove
 that CUDA API records or timed kernels were captured.
 
@@ -61,11 +63,45 @@ python -m pip install -e . -v --no-build-isolation \
   -Ccmake.define.KINETO_AON_FLATBUFFERS_SOURCE_DIR=/path/to/flatbuffers-23.5.26
 ```
 
-## Check service readiness and capture
+## Export a Kineto trace
 
-Start the externally installed service before the workload. For a user-local
-service, the service, readiness tool, and workload must share a private
-node-local `XDG_RUNTIME_DIR` owned by the user:
+After starting the external service and checking readiness, select the backend
+before importing PyTorch:
+
+```bash
+KINETO_GPU_PROFILER=aon python aon_torch_profiler.py --output aon-trace.json
+```
+
+Download {download}`aon_torch_profiler.py <examples/aon_torch_profiler.py>`.
+The example warms up CUDA, records matrix multiplications with `torch.profiler`,
+and exports a Chrome trace. It fails if the trace has no timed CUDA kernels,
+so a CPU-only capture cannot be mistaken for a successful GPU capture.
+
+The converter reads the closed TSF database, selects the capturing PID and PID
+namespace, calibrates CPU and GPU clocks to UTC nanoseconds, and emits CUDA
+runtime calls, driver calls, kernels, copies, and sets. Kernel names are
+demangled when available. Driver calls and GPU operations share correlation
+IDs; CPU-operation links use the launching thread's active PyTorch correlation
+stack at API submission time. Original 64-bit AON correlation and stream IDs
+are preserved in activity metadata.
+
+Only complete events within the profiler capture window are emitted. Records
+without valid timing or a known device calibration are skipped. The service
+can collect PM counters alongside CUDA tracing, and raw TSF captures retain
+those records. This initial Kineto converter does not export numeric PM
+counter events, NVTX ranges, or host callbacks, and does not support dynamic
+collection toggling. CUDA graph kernels and memory nodes are decoded
+when the SDK resolves their node parameters; unresolved graph nodes are skipped.
+
+## Check service readiness and raw capture
+
+Start the externally installed service before CUDA initializes in the workload.
+For a user-local service, run as the normal job user. Root, including remapped
+root inside a container, selects the SDK's global scope instead; setting
+`XDG_RUNTIME_DIR` does not turn a root-run service into a user-local service.
+
+The service, readiness tool, and workload must share a private node-local
+`XDG_RUNTIME_DIR` owned by the user:
 
 ```bash
 export NSIGHT_PERF_BIN_PATH=/path/to/nsight-perf/bin
@@ -101,24 +137,41 @@ database bytes are separate checks; none alone guarantees a complete trace.
 
 ## Slurm example
 
-Download {download}`aon.slurm <examples/aon.slurm>` beside `aon_capture.py`.
-Select the account and partition appropriate to your cluster:
+Download {download}`aon_slurm.sh <examples/aon_slurm.sh>` beside
+`aon_torch_profiler.py`. Select the account and partition appropriate to your
+cluster:
 
 ```bash
 export NSIGHT_PERF_BIN_PATH=/shared/path/to/nsight-perf/bin
 export AON_PYTHON=/shared/path/to/pytorch-venv/bin/python
-export AON_EXAMPLE_SCRIPT="$PWD/aon_capture.py"
-sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION aon.slurm
+export AON_EXAMPLE_SCRIPT="$PWD/aon_torch_profiler.py"
+srun --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
+  --nodes=1 --ntasks=1 --gpus-per-task=1 --cpus-per-task=4 \
+  --mem=32G --time=00:10:00 bash aon_slurm.sh
 ```
 
 The example starts one user-local service for a single-node, single-task,
-single-GPU job, waits for readiness, captures through the installed adapter,
-and stops its own service on exit. It preserves service and readiness logs
-under `aon-JOB_ID`. It does not modify the PyTorch installation or system
-services. For a multi-task job, use one service per node and share the runtime
+single-GPU job, waits for readiness, exports `aon-JOB_ID/aon-trace.json` through
+`torch.profiler`, and stops its own service on exit. It preserves service and
+readiness logs under `aon-JOB_ID`. It does not modify the PyTorch installation
+or system services. For a multi-task job, use one service per node and share the runtime
 directory with that node's consumers. GPU PM-counter collection is exclusive
 per GPU; coordinate with the cluster administrator when a service already owns
 the allocated GPU.
+
+To collect raw TSF databases instead, download `aon_capture.py`, set these
+variables, and run the same `srun` command:
+
+```bash
+export AON_CAPTURE_MODE=raw
+export AON_EXAMPLE_SCRIPT="$PWD/aon_capture.py"
+```
+
+The service's PM configuration is independent of the selected example. PM
+collection can remain enabled alongside CUDA tracing. For a custom service
+configuration, export `NVIDIA_NSIGHT_PERF_CONFIG_PATH` before running `srun`. Use
+a capture lasting several sampling/readback intervals when checking PM data;
+a very short CUDA workload can finish before PM samples become available.
 
 ## Driver and capture troubleshooting
 
@@ -131,6 +184,12 @@ the allocated GPU.
   versions and enabled providers. GPU PM samples can be available even when
   the workload's CUDA API provider is unavailable. A TSF file is not evidence
   that its expected record categories exist.
+- **Containers:** run the user-local service as the normal job user and expose
+  the allocated GPU devices. Make the host's `libnvidia-api.so.1` available
+  inside the container; on x86 Linux this may require a read-only bind mount of
+  `/usr/lib/x86_64-linux-gnu/libnvidia-api.so.1` at the same path. Verify the
+  workload loads the intended `libcuda.so` and NVAPI libraries. A functioning
+  CUDA workload alone does not verify that the driver's AON provider can attach.
 - **CUDA compatibility libraries:** a newer workload user-mode driver may be
   needed on an older host driver. GPU GR-context tracing has a separate
   host-driver matching requirement. The service and workload can use different
@@ -140,6 +199,8 @@ the allocated GPU.
   The Slurm example accepts `AON_DAEMON_DRIVER_DIR` and
   `AON_WORKLOAD_DRIVER_DIR` for these separate search paths. It does not
   download or install compatibility libraries.
-- **CPU-only `torch.profiler` output in AON mode:** this is the current scaffold
-  behavior. The TSF-to-Kineto converter and PyTorch operator correlation remain
-  future work. Unset `KINETO_GPU_PROFILER` to return to normal CUPTI profiling.
+- **CPU-only `torch.profiler` output in AON mode:** check the raw TSF for CUDA
+  API and GPU timing records, not just PM samples. Missing calibration,
+  unresolved process identity, and out-of-window records also prevent activity
+  emission. A service connection alone is insufficient. Unset
+  `KINETO_GPU_PROFILER` to return to CUPTI profiling.

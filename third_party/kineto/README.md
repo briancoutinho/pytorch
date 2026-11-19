@@ -44,6 +44,12 @@ or inaccessible service produces a warning when `KINETO_GPU_PROFILER=aon`
 is selected. A successful connection confirms client access, not readiness
 of every GPU provider. The default CUPTI path does not probe the service.
 
-This remains an experimental registration/session scaffold. Selecting AON
-disables CUPTI GPU collection, but the AON-to-Kineto activity converter is not
-implemented, so `torch.profiler` does not yet emit AON GPU activities.
+Selecting `KINETO_GPU_PROFILER=aon` uses AON instead of CUPTI GPU collection.
+The private adapter decodes the closed TSF database into calibrated CUDA API,
+kernel, memcpy, and memset activities. Kineto owns the resulting activities and
+links GPU work to the CPU operation active when its driver API was submitted.
+The converter filters by PID and PID namespace and retains original 64-bit IDs
+in metadata. PM counters, NVTX, host callbacks, and dynamic collection toggling
+are not supported. Kernel capture requires a compatible running service with
+CUDA API and GPU timing providers. See the
+[PyTorch AON guide](../../docs/source/profiler_aon.md) and examples.
